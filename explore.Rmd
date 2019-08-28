@@ -1,0 +1,42 @@
+---
+title: "Experiment using Rtweets"
+author: "Jordan D. Snyder"
+date: "In Progress"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r libraries}
+library(tidyverse)
+library(rtweet)
+library(wordcloud)
+library(syuzhet)
+library(tm)
+```
+
+```{r token}
+source("src/token.R")
+```
+
+```{r gather tweets}
+djt_tweets <- get_timeline("realDonaldTrump", n = 14000)
+```
+
+```{r tweets by month per year}
+## plot a time series of tweets, aggregating by one-hour intervals
+p1 <- ts_plot(djt_tweets, "hours") +
+    labs(
+        x = "Date and time",
+        y = "Frequency of tweets",
+        title = "Time series of DJT tweets",
+        subtitle = "Frequency of Twitter statuses calculated in one-hour intervals."
+    )
+p1
+```
+
+```{r get wrds}
+wrds <- plain_tweets(djt_tweets$text)
+```
