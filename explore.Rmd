@@ -5,7 +5,7 @@ date: "In Progress"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=TRUE}
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
@@ -17,12 +17,12 @@ library(syuzhet)
 library(tm)
 ```
 
-```{r token}
+```{r token,eval=FALSE}
 source("src/token.R")
 ```
 
 ```{r gather tweets}
-djt_tweets <- get_timeline("realDonaldTrump", n = 14000)
+djt_tweets <- get_timeline("realDonaldTrump", n = 3200)
 ```
 
 ```{r tweets by month per year}
@@ -37,6 +37,61 @@ p1 <- ts_plot(djt_tweets, "hours") +
 p1
 ```
 
-```{r get wrds}
+```{r get wrds,echo=FALSE}
 wrds <- plain_tweets(djt_tweets$text)
+```
+
+```{r word cloud,echo=FALSE}
+tweet_text <- djt_tweets$text
+#Removing numbers, punctations, links and alphanumeric content
+tweet_text<- gsub('[[:digit:]]+', '', tweet_text)
+tweet_text<- gsub('[[:punct:]]+', '', tweet_text)
+tweet_text<- gsub("http[[:alnum:]]*", "", tweet_text)
+tweet_text<- gsub("([[:alpha:]])\1+", "", tweet_text)
+#creating a text corpus
+docs <- Corpus(VectorSource(tweet_text))
+# coverting the encoding to UTF-8 to handle funny characters 
+docs <- tm_map(docs, function(x) iconv(enc2utf8(x), sub = "byte"))
+# Converting the text to lower case
+docs <- tm_map(docs, content_transformer(tolower))
+# Removing english common stopwords
+docs <- tm_map(docs, removeWords, stopwords("english"))
+# Removing stopwords specified by us as a character vector
+docs <- tm_map(docs, removeWords, c("amp"))
+# creating term document matrix 
+tdm <- TermDocumentMatrix(docs)
+# defining tdm as matrix
+m <- as.matrix(tdm)
+# getting word counts in decreasing order
+word_freqs = sort(rowSums(m), decreasing=TRUE) 
+# creating a data frame with words and their frequencies
+djt_wf <- data.frame(word=names(word_freqs), freq=word_freqs)
+# plotting wordcloud
+set.seed(1234)
+djt_wordcloud <-wordcloud(words = djt_wf$word, freq = djt_wf$freq, 
+          min.freq = 1,scale=c(1.8,.5),
+          max.words=200, random.order=FALSE, rot.per=0.15, 
+          colors=brewer.pal(8, "Dark2"))
+djt_wordcloud
+
+```
+
+```{r sentiment analyis, echo=FALSE}
+# Converting tweets to ASCII to trackle strange characters
+tweet_text <- iconv(tweet_text, from="UTF-8", to="ASCII", sub="")
+# removing retweets
+tweet_text<-gsub("(RT|via)((?:\\b\\w*@\\w+)+)","",tweet_text)
+# removing mentions
+tweet_text<-gsub("@\\w+","",tweet_text)
+djt_sentiment<-get_nrc_sentiment((tweet_text))
+sentimentscores<-data.frame(colSums(djt_sentiment[,]))
+names(sentimentscores) <- "Score"
+sentimentscores <- cbind("sentiment"=rownames(sentimentscores),sentimentscores)
+rownames(sentimentscores) <- NULL
+ggplot(data=sentimentscores,aes(x=sentiment,y=Score))+
+  geom_bar(aes(fill=sentiment),stat = "identity")+
+  theme(legend.position="none")+
+  xlab("Sentiments")+ylab("Scores")+
+  ggtitle("Total sentiment based on scores")+
+  theme_minimal() 
 ```
